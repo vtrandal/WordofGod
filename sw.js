@@ -1,5 +1,5 @@
 // Service Worker: Word of God PWA
-const CACHE_NAME = 'word-of-god-shell-v3';
+const CACHE_NAME = 'word-of-god-shell-v4';
 const MEDIA_CACHE_NAME = 'word-of-god-media-v1';
 
 const STATIC_ASSETS = [

@@ -861,6 +861,10 @@ def generate_html_pwa_app(front_matter, books):
         }}
 
         let verseOffsets = [];
+        let verseDurations = [];
+        let playbackStartTime = 0;
+        let fallbackTimer = null;
+        let hasNativeBoundary = false;
 
         function highlightVerse(idx) {{
             currentVerseIndex = idx;
@@ -919,11 +923,15 @@ def generate_html_pwa_app(front_matter, books):
             }}
 
             isPlaying = true;
+            hasNativeBoundary = false;
+            clearInterval(fallbackTimer);
             document.getElementById('playBtn').innerText = '⏸';
 
-            // 1. Build a single continuous string from startIdx to the end of the chapter
+            // 1. Build a single continuous string and timing profile
             let fullText = "";
             verseOffsets = [];
+            verseDurations = [];
+            let accumulatedMs = 0;
 
             for (let i = startIdx; i < GENESIS_VERSES.length; i++) {{
                 const vText = GENESIS_VERSES[i].trim();
@@ -935,12 +943,38 @@ def generate_html_pwa_app(front_matter, books):
                     startChar: startChar,
                     endChar: endChar
                 }});
+
+                // Compute estimated duration based on word count:
+                // Standard speaking rate: ~140 words per minute (2.33 words/second) at 1.0x
+                const words = vText.split(/\\s+/).length;
+                const durationMs = Math.max(1200, (words / 140) * 60 * 1000 / speechSpeed);
+                verseDurations.push({{
+                    index: i,
+                    startMs: accumulatedMs,
+                    endMs: accumulatedMs + durationMs
+                }});
+                accumulatedMs += durationMs;
             }}
 
             // Immediately highlight the starting verse
             highlightVerse(startIdx);
+            playbackStartTime = Date.now();
 
-            // 2. Play as ONE single continuous utterance to bypass iOS gesture-expiration limits
+            // 2. Cross-platform fallback timer: for browsers (like Linux Chrome) where onboundary is disabled
+            fallbackTimer = setInterval(() => {{
+                if (!isPlaying || hasNativeBoundary) return;
+                const elapsed = Date.now() - playbackStartTime;
+                for (let vd of verseDurations) {{
+                    if (elapsed >= vd.startMs && elapsed < vd.endMs) {{
+                        if (currentVerseIndex !== vd.index) {{
+                            highlightVerse(vd.index);
+                        }}
+                        break;
+                    }}
+                }}
+            }}, 200);
+
+            // 3. Play as ONE single continuous utterance to bypass iOS gesture-expiration limits
             if (synth) {{
                 currentUtterance = new SpeechSynthesisUtterance(fullText);
                 currentUtterance.rate = speechSpeed;
@@ -949,9 +983,10 @@ def generate_html_pwa_app(front_matter, books):
                 // Keep reference on window to prevent WebKit garbage collection
                 window._activeUtterance = currentUtterance;
 
-                // 3. Track current verse in real time using the boundary event
+                // Native boundary tracking (active on iOS Safari, macOS, etc.)
                 currentUtterance.onboundary = (event) => {{
                     if (!isPlaying) return;
+                    hasNativeBoundary = true;
                     const charIdx = event.charIndex;
                     for (let r of verseOffsets) {{
                         if (charIdx >= r.startChar && charIdx < r.endChar) {{
@@ -978,6 +1013,7 @@ def generate_html_pwa_app(front_matter, books):
 
         function stopAudio() {{
             isPlaying = false;
+            clearInterval(fallbackTimer);
             document.getElementById('playBtn').innerText = '▶';
             if (synth) {{
                 synth.cancel();
