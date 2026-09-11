@@ -72,6 +72,8 @@
     {\large\textbf{Technical Reviewer:} Antigravity Assistant\par}
     \vspace{1cm}
     {\large Repository: \href{https://github.com/vtrandal/WordofGod}{github.com/vtrandal/WordofGod}\par}
+    \vspace{0.3cm}
+    {\large Live Web PWA: \href{https://vtrandal.github.io/WordofGod/}{vtrandal.github.io/WordofGod}\par}
     \vspace{2cm}
     \vfill
     {\normalsize Project: \texttt{WordofGod} $\cdot$ September 2026\par}
@@ -93,21 +95,21 @@ The architecture addresses three fundamental software challenges:
 \end{enumerate}
 
 \subsection{Architectural Component Matrix}
-The system consists of five distinct, production-verified solutions working in synergy:
+The system consists of six distinct, production-verified solutions working in synergy:
 
 \begin{table}[h!]
 \centering
 \small
-\begin{tabularx}{\linewidth}{p{3.5cm} p{2.8cm} p{2.5cm} X}
+\begin{tabularx}{\linewidth}{p{3.2cm} p{3.2cm} p{2.6cm} X}
 \toprule
-\textbf{Component} & \textbf{Source File} & \textbf{Output Artifact} & \textbf{Core Role} \\
+\textbf{Component} & \textbf{Source / Config} & \textbf{Output Artifact} & \textbf{Core Role} \\
 \midrule
 \textbf{A. PDF Slicer} & \texttt{split\_bible.py} & \texttt{./books/*.pdf} (67) & Automated bookmark extraction and boundary page slicing. \\
 \textbf{B. Local Master Index} & \texttt{Master\_Index.tex} & \texttt{Master\_Index.pdf} & Offline desktop navigation using relative PDF action links. \\
 \textbf{C. Cloud Master Index} & \texttt{Master\_Index\_Cloud.tex} & \texttt{Master\_Index\_Cloud.pdf} & Mobile/iCloud streaming via high-speed GitHub CDN links. \\
 \textbf{D. Web Bookshelf} & \texttt{index.html} & \texttt{index.html} & Zero-dependency responsive web portal with real-time search. \\
 \textbf{E. Build Orchestrator} & \texttt{generate\_indexes.py} & Rebuilds B, C, D & Dynamic metadata aggregation and automated compilation. \\
-\textbf{F. PWA Audio Reader} & \texttt{manifest.json, sw.js} & PWA Mobile App & Fullscreen mobile PWA with text reflow, synchronized verse audio, and offline caching. \\
+\textbf{F. PWA Audio Reader} & \texttt{manifest.json, sw.js} & PWA Mobile App & Fullscreen standalone mobile PWA with text reflow, synchronized verse audio, lock-screen controls, and offline caching. \\
 \bottomrule
 \end{tabularx}
 \caption{System Component Architecture Overview}
@@ -338,10 +340,12 @@ function playVerse(idx) {
 
 \subsection{Design Analysis \& Engineering Decisions}
 \begin{enumerate}
-    \item \textbf{Standalone Installation without Store Friction}: \texttt{manifest.json} specifies \texttt{"display": "standalone"} alongside custom high-resolution icons (\texttt{icon-192.png}, \texttt{icon-512.png}, \texttt{apple-touch-icon.png}). On iOS Safari, tapping \textit{Add to Home Screen} installs the application directly to the home grid, running in an immersive fullscreen viewport without browser chrome.
+    \item \textbf{Standalone Installation without Store Friction}: \texttt{manifest.json} specifies the standalone display mode alongside custom high-resolution application icons (\texttt{icon-192.png}, \texttt{icon-512.png}, and \texttt{apple-touch-icon.png}). On iOS Safari, tapping \textit{Add to Home Screen} installs the application directly to the device springboard, launching in an immersive fullscreen viewport without browser URL bars or navigation buttons.
     \item \textbf{Dynamic Typography Reflow}: Solves the fixed-canvas ``pinch-and-zoom'' handicap of mobile PDF viewers. Text dynamically reflows to any viewport, with reader controls for real-time font scaling (\texttt{A-} / \texttt{A+}).
     \item \textbf{Dual-Tier Service Worker Caching (\texttt{sw.js})}: Implements \textit{Stale-While-Revalidate} for the application shell (HTML/CSS/JS/icons) and \textit{Cache-First} for streaming PDF and audio assets. Once any volume is viewed, the device caches it persistently in \texttt{CacheStorage} for guaranteed offline access.
     \item \textbf{Lock-Screen Media Integration}: Uses the W3C \texttt{MediaSession} API to publish book, chapter, and artist metadata to iOS Control Center, CarPlay, and Android lock screens, complete with system play/pause handlers.
+    \item \textbf{iOS In-App Browser Sandbox Traversal}: When the application link is shared through third-party messaging apps (e.g., Facebook Messenger, Slack, Gmail), iOS defaults to opening the target inside a sandboxed \texttt{WKWebView}. Apple restricts this in-app environment by suppressing the Safari Share Sheet's \textit{Add to Home Screen} option. To complete installation, the user must long-press the link in the messaging application and select \textit{"Open in Safari"} (or tap the in-app Safari icon) to transition to native Mobile Safari, restoring the home screen install workflow.
+    \item \textbf{iOS Universal Link Interception Mitigation}: Serving the web application from standard GitHub repository URLs (\texttt{github.com/*}) causes iOS to trigger Universal Links, routing the request into the native GitHub developer application. Hosting the PWA on GitHub Pages (\url{https://vtrandal.github.io/WordofGod/}) provides an isolated web domain that bypasses developer-app hijacking.
 \end{enumerate}
 
 \newpage
@@ -383,27 +387,49 @@ screenshots/
 \newpage
 \section{Verification Matrix \& Quality Assurance}
 
-The entire system was subjected to empirical testing across platforms:
+The entire system was subjected to empirical testing across platforms and network conditions:
 
 \begin{table}[h!]
 \centering
 \small
-\begin{tabularx}{\linewidth}{p{4cm} p{3.5cm} p{2cm} X}
+\begin{tabularx}{\linewidth}{p{3.6cm} p{3.2cm} p{1.8cm} X}
 \toprule
 \textbf{Test Target} & \textbf{Environment} & \textbf{Result} & \textbf{Observed Behavior} \\
 \midrule
 \textbf{Boundary Slicing} & Python 3.12 / Ubuntu & Passed & 67 clean PDFs, zero overlapping text. \\
 \textbf{Local PDF Navigation} & Evince / Ubuntu & Passed & \texttt{/GoToR} actions launch local book files. \\
-\textbf{Raw GitHub HTTP MIME} & Safari / iOS & Warning & Returns \texttt{application/octet-stream} (forced download). \\
-\textbf{CDN Cloud Streaming} & Safari / iOS & Passed & Returns \texttt{application/pdf}; opens on the fly. \\
+\textbf{Raw GitHub HTTP MIME} & Safari / iOS & Warning & Returns \texttt{application/octet-stream} (forced download dialog). \\
+\textbf{CDN Cloud Streaming} & Safari / iOS & Passed & Returns \texttt{application/pdf}; opens on the fly without prompt. \\
 \textbf{Client-Side Search} & Chrome / Firefox & Passed & Sub-10ms DOM response filtering 66 cards. \\
+\textbf{PWA Home Installation} & Mobile Safari / iOS & Passed & Installs to springboard; launches standalone without browser chrome. \\
+\textbf{In-App Webview Traversal} & Messenger / iOS & Mitigated & Webview suppresses install; long-press "Open in Safari" enables install. \\
+\textbf{Universal Link Routing} & GitHub App / iOS & Resolved & GitHub Pages (\texttt{github.io}) bypasses mobile app login intercept. \\
+\textbf{Synchronized Audio Reader} & Safari / iOS \& Chrome & Passed & Real-time verse centering with \texttt{MediaSession} lock screen controls. \\
 \bottomrule
 \end{tabularx}
 \caption{Cross-Platform Quality Assurance Matrix}
 \end{table}
 
-\section{Conclusion \& Next Steps}
-This architecture demonstrates that monolithic historical documents can be transformed into elegant, modular, cloud-ready software packages with minimal footprint and zero operational cost.
+\section{Conclusion \& Engineering Roadmap}
+
+\subsection{Architectural Summary}
+This engineering initiative demonstrates that monolithic historical documents can be transformed into elegant, modular, cloud-ready software packages with minimal footprint, zero operational costs, and native-grade mobile responsiveness. Through algorithmic boundary extraction, multi-CDN inline delivery, and standards-compliant Progressive Web App technologies, the complete 1769 Authorized King James Bible has been successfully modernized for both offline workstations and cloud-connected mobile devices.
+
+\subsection{Engineering Roadmap \& Future Extensions}
+Building on the production foundation, the following strategic extensions (formulated in \texttt{IDEAS.md}) represent next-phase capabilities:
+\begin{enumerate}
+    \item \textbf{Single-File Embedded PDF Package (Idea 1)}:
+    Leverage the LaTeX \texttt{embedfile} package to pack all 66 standalone book PDFs directly into a single self-contained master document (\texttt{Master\_Bible\_Embedded.pdf}). This provides extreme offline portability without needing a local \texttt{./books/} subfolder.
+    
+    \item \textbf{Single Self-Contained Master Volume with Internal Jumps (Idea 3)}:
+    Compile a unified PDF using LaTeX \texttt{pdfpages} and internal \texttt{\textbackslash hyperlink} / \texttt{\textbackslash hypertarget} destinations, enabling immediate intra-document jumps between the master directory and biblical chapters with zero filesystem or external protocol dependencies.
+    
+    \item \textbf{One-Click Offline Library Pre-Caching (Idea 4)}:
+    Implement an explicit ``Download Entire Bible for Offline Use'' caching button within the PWA Service Worker (\texttt{sw.js}). Utilizing the Cache API, the browser will asynchronously pre-fetch and persist all 66 canonical book PDFs into persistent device storage for offline travel.
+    
+    \item \textbf{Extended Multi-Chapter Narration Engine}:
+    Scale the synchronized audio reader beyond Genesis 1 to cover all 1,189 chapters of the Old and New Testaments using public-domain synchronized KJV audio recordings and timed verse timestamps.
+\end{enumerate}
 
 \vspace{1cm}
 \begin{center}

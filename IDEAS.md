@@ -57,13 +57,16 @@ The following components have been developed, tested, and are currently function
   * **100% Mobile & Cloud Portable**: Works seamlessly on iPhone (via iCloud, Safari, or Files app), iPad, Android, and web without needing the `./books/` folder on the device.
 ### F. Progressive Web App (PWA) Mobile Scripture & Audio Reader
 * **Status**: Implemented & Verified
+* **Live Public URL**: [`https://vtrandal.github.io/WordofGod/`](https://vtrandal.github.io/WordofGod/)
 * **Files**: [`manifest.json`](file:///home/vtrandal/Documents/projects/WordofGod/manifest.json), [`sw.js`](file:///home/vtrandal/Documents/projects/WordofGod/sw.js), [`icons/`](file:///home/vtrandal/Documents/projects/WordofGod/icons/), [`index.html`](file:///home/vtrandal/Documents/projects/WordofGod/index.html)
 * **Details**:
   * **Zero-Install App Experience**: Installs directly to iPhone and Android home screens as a full-screen standalone application with custom high-res icons without requiring App Store approval or compilation binaries.
   * **Dynamic Text Reflow**: Solves the mobile PDF pinch-and-zoom limitation with responsive layout and customizable font sizing.
-  * **Synchronized Audio Narration (Word-of-Promise Experience)**: Integrated audio narration engine with real-time synchronized verse highlighting and automatic scrolling (demonstrated on Genesis 1).
+  * **Synchronized Audio Narration (Word-of-Promise Experience)**: Integrated audio narration engine with real-time synchronized verse highlighting, speed controls (0.75x to 1.5x), and automatic scrolling (demonstrated on Genesis 1).
   * **Lock-Screen Media Controls**: Integrates with the native `MediaSession` API to display track metadata and playback controls on the device lock screen and Control Center.
   * **Offline Service Worker Caching**: Intercepts requests to cache app assets and documents locally for guaranteed offline use.
+  * **iOS In-App Browser Handling**: When links are clicked within third-party messaging apps (such as Facebook Messenger, Gmail, or Slack), iOS opens them in a sandboxed `WKWebView` where the "Add to Home Screen" option is disabled. Users must long-press the link in Messenger and choose **"Open in Safari"** (or tap the Safari compass button) to access the native Safari Share Sheet and save the PWA to the home screen.
+  * **iOS Universal Link Prevention**: Hosted on GitHub Pages (`vtrandal.github.io`) rather than `github.com` to prevent the native iOS GitHub developer app from intercepting the link and demanding a login.
 
 ---
 
