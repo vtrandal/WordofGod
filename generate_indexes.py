@@ -860,38 +860,10 @@ def generate_html_pwa_app(front_matter, books):
             document.getElementById('readerContent').style.fontSize = fontSizePx + 'px';
         }}
 
-        function changeSpeed(val) {{
-            speechSpeed = parseFloat(val);
-            if (isPlaying) {{
-                const idx = currentVerseIndex;
-                stopAudio();
-                playVerse(idx);
-            }}
-        }}
+        let verseOffsets = [];
 
-        function togglePlayAudio() {{
-            if (isPlaying) {{
-                stopAudio();
-            }} else {{
-                const startIdx = currentVerseIndex >= 0 ? currentVerseIndex : 0;
-                playVerse(startIdx);
-            }}
-        }}
-
-        function jumpToVerse(idx) {{
-            stopAudio();
-            playVerse(idx);
-        }}
-
-        function playVerse(idx) {{
-            if (idx >= GENESIS_VERSES.length) {{
-                stopAudio();
-                return;
-            }}
-
+        function highlightVerse(idx) {{
             currentVerseIndex = idx;
-            isPlaying = true;
-            document.getElementById('playBtn').innerText = '⏸';
             document.getElementById('trackTitle').innerText = 'Genesis 1:' + (idx + 1);
 
             // Highlight current verse in UI
@@ -902,20 +874,102 @@ def generate_html_pwa_app(front_matter, books):
                 activeEl.scrollIntoView({{ behavior: 'smooth', block: 'center' }});
             }}
 
-            // Text-To-Speech engine (zero external dependencies, 100% offline)
+            // Lock screen MediaSession integration
+            if ('mediaSession' in navigator) {{
+                navigator.mediaSession.metadata = new MediaMetadata({{
+                    title: 'Genesis 1:' + (idx + 1),
+                    artist: 'King James Version (1769)',
+                    album: 'Word of God'
+                }});
+            }}
+        }}
+
+        function changeSpeed(val) {{
+            speechSpeed = parseFloat(val);
+            if (isPlaying) {{
+                const idx = currentVerseIndex >= 0 ? currentVerseIndex : 0;
+                stopAudio();
+                playContinuousAudio(idx);
+            }}
+        }}
+
+        function togglePlayAudio() {{
+            if (isPlaying) {{
+                stopAudio();
+            }} else {{
+                const startIdx = (currentVerseIndex >= 0 && currentVerseIndex < GENESIS_VERSES.length) ? currentVerseIndex : 0;
+                playContinuousAudio(startIdx);
+            }}
+        }}
+
+        function jumpToVerse(idx) {{
+            stopAudio();
+            playContinuousAudio(idx);
+        }}
+
+        function playContinuousAudio(startIdx) {{
+            if (startIdx >= GENESIS_VERSES.length) {{
+                stopAudio();
+                return;
+            }}
+
+            // Stop any existing speech session
             if (synth) {{
                 synth.cancel();
-                const text = GENESIS_VERSES[idx];
-                currentUtterance = new SpeechSynthesisUtterance(text);
+            }}
+
+            isPlaying = true;
+            document.getElementById('playBtn').innerText = '⏸';
+
+            // 1. Build a single continuous string from startIdx to the end of the chapter
+            let fullText = "";
+            verseOffsets = [];
+
+            for (let i = startIdx; i < GENESIS_VERSES.length; i++) {{
+                const vText = GENESIS_VERSES[i].trim();
+                const startChar = fullText.length;
+                // Add natural breathing pause between verses
+                fullText += vText + " \n\n";
+                const endChar = fullText.length;
+                verseOffsets.push({{
+                    index: i,
+                    startChar: startChar,
+                    endChar: endChar
+                }});
+            }}
+
+            // Immediately highlight the starting verse
+            highlightVerse(startIdx);
+
+            // 2. Play as ONE single continuous utterance to bypass iOS gesture-expiration limits
+            if (synth) {{
+                currentUtterance = new SpeechSynthesisUtterance(fullText);
                 currentUtterance.rate = speechSpeed;
                 currentUtterance.pitch = 0.95; // Warm biblical cadence
 
-                currentUtterance.onend = () => {{
-                    if (isPlaying) {{
-                        playVerse(idx + 1);
+                // Keep reference on window to prevent WebKit garbage collection
+                window._activeUtterance = currentUtterance;
+
+                // 3. Track current verse in real time using the boundary event
+                currentUtterance.onboundary = (event) => {{
+                    if (!isPlaying) return;
+                    const charIdx = event.charIndex;
+                    for (let r of verseOffsets) {{
+                        if (charIdx >= r.startChar && charIdx < r.endChar) {{
+                            if (currentVerseIndex !== r.index) {{
+                                highlightVerse(r.index);
+                            }}
+                            break;
+                        }}
                     }}
                 }};
-                currentUtterance.onerror = () => {{
+
+                currentUtterance.onend = () => {{
+                    stopAudio();
+                }};
+
+                currentUtterance.onerror = (e) => {{
+                    console.warn('SpeechSynthesis error:', e);
                     stopAudio();
                 }};
 
@@ -926,7 +980,10 @@ def generate_html_pwa_app(front_matter, books):
         function stopAudio() {{
             isPlaying = false;
             document.getElementById('playBtn').innerText = '▶';
-            if (synth) synth.cancel();
+            if (synth) {{
+                synth.cancel();
+            }}
+            window._activeUtterance = null;
         }}
     </script>
 </body>
