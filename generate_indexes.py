@@ -3,6 +3,8 @@ import glob
 import subprocess
 from pypdf import PdfReader
 
+GITHUB_RAW_BASE = "https://raw.githubusercontent.com/vtrandal/WordofGod/main/books"
+
 def get_book_metadata():
     files = sorted(glob.glob("books/[0-9][0-9]_*.pdf"))
     books = []
@@ -33,15 +35,41 @@ def get_book_metadata():
             "title": title,
             "filename": basename,
             "rel_path": f"books/{basename}",
+            "cloud_url": f"{GITHUB_RAW_BASE}/{basename}",
             "pages": len(r.pages),
             "testament": testament
         })
     return front_matter, books
 
-def generate_latex_master(front_matter, books):
+def generate_latex_documents(front_matter, books):
     ot_books = [b for b in books if b["testament"] == "OT"]
     nt_books = [b for b in books if b["testament"] == "NT"]
 
+    # 1. Local Edition (Master_Index.tex)
+    _build_single_tex(
+        tex_filename="Master_Index.tex",
+        pdf_filename="Master_Index.pdf",
+        subtitle_note="Local Offline Edition --- Links open local PDF files in ./books/",
+        ot_books=ot_books,
+        nt_books=nt_books,
+        link_key="rel_path",
+        overview_text="Offline Local Edition $\\cdot$ Stored in \\texttt{./books/}",
+        front_matter_link="books/00_Front_Matter.pdf"
+    )
+
+    # 2. Cloud Edition (Master_Index_Cloud.tex) - For iPhone / iCloud / Web
+    _build_single_tex(
+        tex_filename="Master_Index_Cloud.tex",
+        pdf_filename="Master_Index_Cloud.pdf",
+        subtitle_note="Cloud Edition --- Links stream directly from GitHub (iPhone \\& Mobile Ready)",
+        ot_books=ot_books,
+        nt_books=nt_books,
+        link_key="cloud_url",
+        overview_text="Cloud Edition $\\cdot$ Hosted on GitHub \\texttt{vtrandal/WordofGod}",
+        front_matter_link=f"{GITHUB_RAW_BASE}/00_Front_Matter.pdf"
+    )
+
+def _build_single_tex(tex_filename, pdf_filename, subtitle_note, ot_books, nt_books, link_key, overview_text, front_matter_link):
     tex = r"""\documentclass[10pt,letterpaper]{article}
 \usepackage[top=0.6in,bottom=0.6in,left=0.75in,right=0.75in]{geometry}
 \usepackage{pdfpages}
@@ -72,7 +100,7 @@ def generate_latex_master(front_matter, books):
 \begin{center}
     {\LARGE\bfseries The Holy Bible}\\[0.2em]
     {\normalsize Authorized King James Version (1769)}\\[0.25em]
-    {\footnotesize\itshape Interactive Master Directory --- Click on any book below to open its PDF document}\\[0.4em]
+    {\footnotesize\itshape """ + subtitle_note + r"""}\\[0.4em]
     \rule{0.85\linewidth}{0.4pt}
 \end{center}
 
@@ -88,7 +116,7 @@ def generate_latex_master(front_matter, books):
 \midrule
 """
     for b in ot_books:
-        tex += f"{b['num']:02d} & \\href{{{b['rel_path']}}}{{{b['title']}}} & {b['pages']} pp. \\\\\n"
+        tex += f"{b['num']:02d} & \\href{{{b[link_key]}}}{{{b['title']}}} & {b['pages']} pp. \\\\\n"
 
     tex += r"""\bottomrule
 \end{tabularx}
@@ -102,7 +130,7 @@ def generate_latex_master(front_matter, books):
 \midrule
 """
     for b in nt_books:
-        tex += f"{b['num']:02d} & \\href{{{b['rel_path']}}}{{{b['title']}}} & {b['pages']} pp. \\\\\n"
+        tex += f"{b['num']:02d} & \\href{{{b[link_key]}}}{{{b['title']}}} & {b['pages']} pp. \\\\\n"
 
     tex += r"""\bottomrule
 \end{tabularx}
@@ -115,8 +143,8 @@ def generate_latex_master(front_matter, books):
     \footnotesize
     \vspace{0.2em}
     Total: 66 Canonical Books $\cdot$ 1,437 Pages\\
-    Standalone PDF files located in \texttt{./books/}\\
-    Front Matter: \href{books/00_Front_Matter.pdf}{\textit{00\_Front\_Matter.pdf}}
+    """ + overview_text + r"""\\
+    Front Matter: \href{""" + front_matter_link + r"""}{\textit{00\_Front\_Matter.pdf}}
     \vspace{0.4em}}}
 \end{center}
 
@@ -130,20 +158,21 @@ def generate_latex_master(front_matter, books):
 
 \end{document}
 """
-    with open("Master_Index.tex", "w") as f:
+    with open(tex_filename, "w") as f:
         f.write(tex)
-    print("Generated Master_Index.tex")
+    print(f"Generated {tex_filename}")
 
-    print("Compiling Master_Index.tex via pdflatex...")
-    result = subprocess.run(["pdflatex", "-interaction=nonstopmode", "Master_Index.tex"], capture_output=True, text=True)
+    print(f"Compiling {tex_filename} via pdflatex...")
+    result = subprocess.run(["pdflatex", "-interaction=nonstopmode", tex_filename], capture_output=True, text=True)
     if result.returncode == 0:
-        print("Successfully generated Master_Index.pdf!")
+        print(f"Successfully generated {pdf_filename}!")
+        base_name = os.path.splitext(tex_filename)[0]
         for ext in [".aux", ".log", ".out"]:
-            aux_f = f"Master_Index{ext}"
+            aux_f = f"{base_name}{ext}"
             if os.path.exists(aux_f):
                 os.remove(aux_f)
     else:
-        print("pdflatex compilation failed. Error log:")
+        print(f"pdflatex compilation failed for {tex_filename}. Error log:")
         print(result.stdout[-1000:])
 
 def generate_html_bookshelf(front_matter, books):
@@ -250,6 +279,14 @@ def generate_html_bookshelf(front_matter, books):
         }
         .btn-primary:hover {
             opacity: 0.92;
+            transform: translateY(-1px);
+        }
+        .btn-cloud {
+            background-color: #0284c7;
+            color: #ffffff;
+        }
+        .btn-cloud:hover {
+            background-color: #0369a1;
             transform: translateY(-1px);
         }
         .btn-outline {
@@ -370,14 +407,17 @@ def generate_html_bookshelf(front_matter, books):
             <div class="meta-badges">
                 <span class="badge">66 Books</span>
                 <span class="badge">1,437 Pages</span>
-                <span class="badge">Standalone PDF Documents</span>
+                <span class="badge">Hosted on GitHub: vtrandal/WordofGod</span>
             </div>
             <div class="actions-bar">
+                <a href="Master_Index_Cloud.pdf" class="btn btn-cloud" target="_blank">
+                    ☁️ Open Cloud Master Index (iPhone / Web)
+                </a>
                 <a href="Master_Index.pdf" class="btn btn-primary" target="_blank">
-                    📄 Open Master Index PDF
+                    📄 Open Local Master Index
                 </a>
                 <a href="books/00_Front_Matter.pdf" class="btn btn-outline" target="_blank">
-                    📖 Read Front Matter (Preface &amp; TOC)
+                    📖 Read Front Matter
                 </a>
             </div>
         </header>
@@ -431,7 +471,7 @@ def generate_html_bookshelf(front_matter, books):
         </div>
 
         <footer>
-            <p>Word of God &bull; Individual PDFs generated from 1769 King James text &bull; Fully offline &bull; Standalone</p>
+            <p>Word of God &bull; Individual PDFs generated from 1769 King James text &bull; GitHub Cloud Hosted &bull; Standalone</p>
         </footer>
     </div>
 
@@ -458,5 +498,5 @@ def generate_html_bookshelf(front_matter, books):
 
 if __name__ == "__main__":
     front_matter, books = get_book_metadata()
-    generate_latex_master(front_matter, books)
+    generate_latex_documents(front_matter, books)
     generate_html_bookshelf(front_matter, books)

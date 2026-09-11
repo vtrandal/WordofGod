@@ -100,6 +100,14 @@
             opacity: 0.92;
             transform: translateY(-1px);
         }
+        .btn-cloud {
+            background-color: #0284c7;
+            color: #ffffff;
+        }
+        .btn-cloud:hover {
+            background-color: #0369a1;
+            transform: translateY(-1px);
+        }
         .btn-outline {
             background-color: var(--card-bg);
             color: var(--text-primary);
@@ -218,14 +226,17 @@
             <div class="meta-badges">
                 <span class="badge">66 Books</span>
                 <span class="badge">1,437 Pages</span>
-                <span class="badge">Standalone PDF Documents</span>
+                <span class="badge">Hosted on GitHub: vtrandal/WordofGod</span>
             </div>
             <div class="actions-bar">
+                <a href="Master_Index_Cloud.pdf" class="btn btn-cloud" target="_blank">
+                    ☁️ Open Cloud Master Index (iPhone / Web)
+                </a>
                 <a href="Master_Index.pdf" class="btn btn-primary" target="_blank">
-                    📄 Open Master Index PDF
+                    📄 Open Local Master Index
                 </a>
                 <a href="books/00_Front_Matter.pdf" class="btn btn-outline" target="_blank">
-                    📖 Read Front Matter (Preface &amp; TOC)
+                    📖 Read Front Matter
                 </a>
             </div>
         </header>
@@ -719,7 +730,7 @@
         </div>
 
         <footer>
-            <p>Word of God &bull; Individual PDFs generated from 1769 King James text &bull; Fully offline &bull; Standalone</p>
+            <p>Word of God &bull; Individual PDFs generated from 1769 King James text &bull; GitHub Cloud Hosted &bull; Standalone</p>
         </footer>
     </div>
 

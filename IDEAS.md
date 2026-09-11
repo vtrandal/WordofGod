@@ -19,7 +19,7 @@ The following components have been developed, tested, and are currently function
   * Extracted [`00_Front_Matter.pdf`](file:///home/vtrandal/Documents/projects/WordofGod/books/00_Front_Matter.pdf) containing the original title, public domain statement, and original printed table of contents.
   * Numbered all books with zero-padded prefixes (`01_Genesis.pdf` through `66_Revelation.pdf`) to preserve canonical ordering in file systems.
 
-### B. LaTeX Master Directory PDF
+### B. LaTeX Master Directory PDF (Local Offline Edition)
 * **Status**: Implemented & Compiled
 * **Source**: [`Master_Index.tex`](file:///home/vtrandal/Documents/projects/WordofGod/Master_Index.tex)
 * **Output**: [`Master_Index.pdf`](file:///home/vtrandal/Documents/projects/WordofGod/Master_Index.pdf)
@@ -27,7 +27,7 @@ The following components have been developed, tested, and are currently function
   * 5-page document compiled via `pdflatex`.
   * Pages 1–4 embed the original front matter using `pdfpages`.
   * Page 5 features an interactive two-column directory (Old Testament on left, New Testament on right).
-  * Each book title is an embedded hyperlink using the PDF `/GoToR` (Remote Destination) standard pointing directly to the individual PDF in `./books/`.
+  * Each book title is an embedded hyperlink using the PDF `/GoToR` (Remote Destination) standard pointing directly to the local PDF in `./books/`.
 
 ### C. Digital Web Bookshelf
 * **Status**: Implemented & Verified
@@ -36,7 +36,7 @@ The following components have been developed, tested, and are currently function
   * Lightweight, offline-capable HTML5 reading portal.
   * Divided into Old Testament (39 books) and New Testament (27 books) with book numbers and page counts.
   * Includes a real-time live search filter to instantly find any book by name.
-  * Directly links to individual book PDFs and the master index.
+  * Directly links to individual book PDFs, the Local Master Index, and the Cloud Master Index.
   * Free of browser sandbox security warnings.
 
 ### D. Automated Index Generator
@@ -44,33 +44,33 @@ The following components have been developed, tested, and are currently function
 * **Script**: [`generate_indexes.py`](file:///home/vtrandal/Documents/projects/WordofGod/generate_indexes.py)
 * **Details**:
   * Inspects the [`books/`](file:///home/vtrandal/Documents/projects/WordofGod/books/) directory to dynamically gather exact page counts and titles.
-  * Automatically generates and compiles [`Master_Index.tex`](file:///home/vtrandal/Documents/projects/WordofGod/Master_Index.tex) into [`Master_Index.pdf`](file:///home/vtrandal/Documents/projects/WordofGod/Master_Index.pdf).
+  * Generates and compiles both the Local Edition ([`Master_Index.pdf`](file:///home/vtrandal/Documents/projects/WordofGod/Master_Index.pdf)) and Cloud Edition ([`Master_Index_Cloud.pdf`](file:///home/vtrandal/Documents/projects/WordofGod/Master_Index_Cloud.pdf)).
   * Generates the updated [`index.html`](file:///home/vtrandal/Documents/projects/WordofGod/index.html) bookshelf.
+
+### E. Cloud-Hosted Master Directory PDF (GitHub Hosted Edition)
+* **Status**: Implemented & Compiled
+* **Source**: [`Master_Index_Cloud.tex`](file:///home/vtrandal/Documents/projects/WordofGod/Master_Index_Cloud.tex)
+* **Output**: [`Master_Index_Cloud.pdf`](file:///home/vtrandal/Documents/projects/WordofGod/Master_Index_Cloud.pdf)
+* **GitHub Repository**: [`https://github.com/vtrandal/WordofGod`](https://github.com/vtrandal/WordofGod)
+* **Details**:
+  * Identical elegant visual layout as the master directory, but all 67 book links use standard `https://raw.githubusercontent.com/vtrandal/WordofGod/main/books/...` URLs.
+  * **100% Mobile & Cloud Portable**: Works seamlessly on iPhone (via iCloud, Safari, or Files app), iPad, Android, and web without needing the `./books/` folder on the device.
+  * Streams books directly from your GitHub cloud repository on demand with zero permission warnings.
 
 ---
 
 ## 2. Unimplemented Ideas
 
-The following three ideas represent creative, automated ways to achieve complete portability using programming:
+The following ideas represent creative, automated ways to achieve alternative architectures using programming:
 
 ### Idea 1: Embed All 66 PDFs Inside the Master PDF (The 1-File Portable Package)
 * **Concept**: Use LaTeX's `embedfile` package (already installed on the system) to compile a single master PDF that packs all 66 individual book PDFs directly inside itself as embedded attachments.
 * **Key Properties**:
-  * **100% Portable**: You have one single file (`Master_Bible.pdf`).
+  * **100% Portable Offline**: You have one single file (`Master_Bible.pdf`).
   * No `./books/` folder needed when sharing or moving it.
   * You can email that one file, copy it to a tablet or flash drive, and all 66 books travel inside it.
   * When opened in any standard PDF reader (Acrobat, Evince, Okular, etc.), clicking a book extracts and opens that book's standalone PDF on demand.
   * **Effort**: Zero manual work—the script generates it automatically.
-
-### Idea 2: Web URL Links to the PDFs (Cloud/GitHub Hosted)
-* **Concept**: Host the 66 PDFs on a GitHub repository or cloud host, and embed standard `http://` or `https://` web hyperlinks in LaTeX:
-  ```latex
-  \href{https://.../books/01_Genesis.pdf}{Genesis}
-  ```
-* **Key Properties**:
-  * Each book has a permanent web URL directly to the PDF (e.g., `https://.../books/01_Genesis.pdf`).
-  * **Universal Compatibility**: Works on any device in the world (phones, laptops, iPads, browsers).
-  * When the reader clicks a link, the browser/reader immediately streams that specific book PDF directly with zero local file dependencies.
 
 ### Idea 3: The Single Self-Contained Master Volume with Instant Internal Jumps
 * **Concept**: Create a single file where clicking a book instantly jumps to that book's text with no external file dependencies at all.
