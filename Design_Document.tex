@@ -314,32 +314,46 @@ def generate_latex_documents(front_matter, books):
 \textbf{Purpose}: Deliver an installable, mobile-optimized scripture reading and audio narration app (reproducing the core ``Word of Promise'' synchronized audio and text experience) with zero compilation binaries and zero App Store fees.
 
 \begin{lstlisting}
-// Synchronized Audio & Real-Time Verse Highlighting Engine
-function playVerse(idx) {
-  currentVerseIndex = idx;
-  document.getElementById('trackTitle').innerText = 'Genesis 1:' + (idx + 1);
+// Continuous Chapter Narration Engine with Boundary Verse Tracking
+function playContinuousAudio(startIdx) {
+  if (synth) synth.cancel();
+  isPlaying = true;
+  document.getElementById('playBtn').innerText = '||';
 
-  // 1. Highlight current active verse & auto-scroll into center view
-  document.querySelectorAll('.verse').forEach(el => el.classList.remove('active'));
-  const activeEl = document.getElementById('v-' + (idx + 1));
-  if (activeEl) {
-    activeEl.classList.add('active');
-    activeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  // 1. Assemble single continuous string and record character offsets
+  let fullText = "";
+  verseOffsets = [];
+  for (let i = startIdx; i < GENESIS_VERSES.length; i++) {
+    const startChar = fullText.length;
+    fullText += GENESIS_VERSES[i].trim() + " \n\n";
+    verseOffsets.push({ index: i, startChar, endChar: fullText.length });
   }
+  highlightVerse(startIdx);
 
-  // 2. Offline Speech Narration & MediaSession Integration
-  if (synth) {
-    synth.cancel();
-    currentUtterance = new SpeechSynthesisUtterance(GENESIS_VERSES[idx]);
-    currentUtterance.rate = speechSpeed;
-    currentUtterance.onend = () => { if (isPlaying) playVerse(idx + 1); };
-    synth.speak(currentUtterance);
-  }
+  // 2. Play as ONE single continuous utterance (bypasses iOS gesture limits)
+  currentUtterance = new SpeechSynthesisUtterance(fullText);
+  currentUtterance.rate = speechSpeed;
+  currentUtterance.pitch = 0.95;
+  window._activeUtterance = currentUtterance; // GC Anchor
+
+  // 3. Real-time verse tracking via boundary event
+  currentUtterance.onboundary = (e) => {
+    if (!isPlaying) return;
+    for (let r of verseOffsets) {
+      if (e.charIndex >= r.startChar && e.charIndex < r.endChar) {
+        if (currentVerseIndex !== r.index) highlightVerse(r.index);
+        break;
+      }
+    }
+  };
+  currentUtterance.onend = () => stopAudio();
+  synth.speak(currentUtterance);
 }
 \end{lstlisting}
 
 \subsection{Design Analysis \& Engineering Decisions}
 \begin{enumerate}
+    \item \textbf{Continuous Chapter Utterance with Boundary Event Tracking}: Solves the critical iOS WebKit limitation where chained programmatic \texttt{.speak()} calls inside \texttt{onend} callbacks are terminated after two verses due to user-gesture expiration. By assembling the remaining verses into one single continuous string (~4,057 characters for Genesis 1, well within the 32k API limit) and mapping character offsets to \texttt{onboundary} events, playback runs continuously under the original user tap authorization while maintaining real-time verse auto-scroll centering.
     \item \textbf{Standalone Installation without Store Friction}: \texttt{manifest.json} specifies the standalone display mode alongside custom high-resolution application icons (\texttt{icon-192.png}, \texttt{icon-512.png}, and \texttt{apple-touch-icon.png}). On iOS Safari, tapping \textit{Add to Home Screen} installs the application directly to the device springboard, launching in an immersive fullscreen viewport without browser URL bars or navigation buttons.
     \item \textbf{Dynamic Typography Reflow}: Solves the fixed-canvas ``pinch-and-zoom'' handicap of mobile PDF viewers. Text dynamically reflows to any viewport, with reader controls for real-time font scaling (\texttt{A-} / \texttt{A+}).
     \item \textbf{Dual-Tier Service Worker Caching (\texttt{sw.js})}: Implements \textit{Stale-While-Revalidate} for the application shell (HTML/CSS/JS/icons) and \textit{Cache-First} for streaming PDF and audio assets. Once any volume is viewed, the device caches it persistently in \texttt{CacheStorage} for guaranteed offline access.
