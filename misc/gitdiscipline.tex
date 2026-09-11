@@ -1,0 +1,263 @@
+\documentclass[11pt,letterpaper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage[margin=1in]{geometry}
+\usepackage{xcolor}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{listings}
+\usepackage{tcolorbox}
+\usepackage{hyperref}
+\usepackage{booktabs}
+
+% Palette definition
+\definecolor{primaryblue}{RGB}{30, 58, 138}
+\definecolor{slateborder}{RGB}{203, 213, 225}
+\definecolor{codebg}{RGB}{248, 250, 252}
+\definecolor{promptbg}{RGB}{241, 245, 249}
+\definecolor{accentdark}{RGB}{15, 23, 42}
+\definecolor{keywordblue}{RGB}{2, 132, 199}
+\definecolor{commentgreen}{RGB}{22, 101, 52}
+
+\tcbuselibrary{skins,breakable}
+
+% Hyperref setup
+\hypersetup{
+    colorlinks=true,
+    linkcolor=primaryblue,
+    urlcolor=keywordblue,
+    citecolor=primaryblue
+}
+
+% Section styling
+\titleformat{\section}
+  {\normalfont\Large\bfseries\color{primaryblue}}
+  {\thesection}{1em}{}[\titlerule]
+
+\titleformat{\subsection}
+  {\normalfont\large\bfseries\color{accentdark}}
+  {\thesubsection}{1em}{}
+
+% Listings configuration for Bash/Git
+\lstdefinestyle{gitbash}{
+    backgroundcolor=\color{codebg},
+    basicstyle=\small\ttfamily\color{accentdark},
+    breaklines=true,
+    breakatwhitespace=true,
+    frame=single,
+    rulecolor=\color{slateborder},
+    framesep=6pt,
+    tabsize=2,
+    showstringspaces=false,
+    commentstyle=\color{commentgreen}\itshape,
+    keywordstyle=\color{keywordblue}\bfseries,
+    morekeywords={git, checkout, branch, stash, reset, clean, status, agy, function, return}
+}
+\lstset{style=gitbash}
+
+% Custom tcolorbox for Prompts
+\newtcolorbox{promptbox}[1][]{
+    colback=promptbg,
+    colframe=slateborder,
+    coltitle=accentdark,
+    fonttitle=\bfseries\sffamily,
+    title={Original Query},
+    sharp corners,
+    boxrule=0.8pt,
+    left=12pt,
+    right=12pt,
+    top=8pt,
+    bottom=8pt,
+    breakable,
+    #1
+}
+
+% Custom tcolorbox for Recovery Alert/Callout
+\newtcolorbox{recoverybox}[1][]{
+    colback=codebg,
+    colframe=primaryblue,
+    coltitle=white,
+    fonttitle=\bfseries\sffamily,
+    title={Recovery Hatch Summary},
+    sharp corners,
+    boxrule=1pt,
+    left=10pt,
+    right=10pt,
+    top=8pt,
+    bottom=8pt,
+    #1
+}
+
+\begin{document}
+
+\begin{center}
+    {\LARGE \textbf{\color{primaryblue}Git State Management and Recovery Discipline}}\\[0.4em]
+    {\large \textbf{Resilient Operational Patterns for Google Antigravity 2.0 CLI (\texttt{agy}) Sessions}}\\[0.8em]
+    \rule{\linewidth}{0.8pt}
+\end{center}
+
+\vspace{0.5em}
+
+\section*{Context and User Inquiry}
+
+\begin{promptbox}
+``If my Ubuntu 24.04 VM were unstable I would consider using tmux, but it has not crashed since LLMs helped me make it stable. So I will not likely need tmux. I only worry about leaving the repo in unknown state if the system reboots during agy sessions that are saving work to the repo. Is there a git discipline that makes it easier to return to known good state after a disconnect or something else that leaves the repo in an unknown state? Can we versions or release numbers or tags or something? I am not very familiar with git let alone a discipline that might be useful here.''
+\end{promptbox}
+
+\section{Introduction: Branches vs. Tags and Version Numbers}
+
+When managing autonomous code-generation workflows using agentic command-line tools like \texttt{agy}, unexpected interruptions—such as an operating system reboot, network drop, or virtual machine shutdown—can occur in the middle of multi-file write operations. This runs the risk of leaving the repository in a corrupted, inconsistent, or untracked state.
+
+A common intuition is to apply semantic versioning numbers or Git tags before running an agent. However:
+\begin{itemize}[leftmargin=1.5em, itemsep=0.3em]
+    \item \textbf{Git Tags and Version Numbers} represent immutable milestones intended to mark permanent releases (e.g., \texttt{v1.0.0}, \texttt{v1.2.3-rc1}) in project history. They are metadata pointers created to look backward at completed, verified work.
+    \item \textbf{Ephemeral Feature Branches} provide dynamic, disposable sandboxes designed specifically for in-flight, exploratory, or automated mutations.
+\end{itemize}
+
+Using a dedicated branching discipline rather than version tags eliminates the risk of an unknown repository state, enabling an instantaneous rollback to a known good state with a single command.
+
+\section{The Three-Pillar Git Discipline}
+
+\subsection{Pillar 1: Always Isolate Agent Work in a Disposable Branch}
+Never invoke \texttt{agy} directly on a trunk branch such as \texttt{main} or \texttt{master}. Prior to starting an agent session, branch off into a dedicated sandbox prefixed with a clear namespace (e.g., \texttt{agy/}):
+
+\begin{lstlisting}[language=bash]
+# Create and switch to a disposable agent branch
+git checkout -b agy/session-task-name
+\end{lstlisting}
+
+If an abrupt reboot occurs mid-session, the integrity of \texttt{main} remains intact. If the session output is determined to be malformed or unrecoverable, the entire branch can be discarded:
+
+\begin{lstlisting}[language=bash]
+# Abandon the corrupted session and return to safety
+git checkout main
+git branch -D agy/session-task-name
+\end{lstlisting}
+
+\subsection{Pillar 2: Verify a Pristine Starting State}
+An autonomous agent that starts in a repository containing dirty unstaged changes or loose files will interweave new modifications with existing work. Before running \texttt{agy}, ensure that the working tree is clean:
+
+\begin{lstlisting}[language=bash]
+# Check working directory state
+git status
+
+# If uncommitted edits exist, stow them away cleanly
+git stash -u   # -u includes untracked files
+\end{lstlisting}
+
+\subsection{Pillar 3: The Deterministic One-Command Recovery Hatch}
+If the system restarts unexpectedly and you return to find half-written files, partial patches, or syntax errors, there is no need to manually audit what the agent touched. 
+
+Because the session started from a known clean commit on the branch, the repository can be returned to that exact state instantly:
+
+\begin{lstlisting}[language=bash]
+# 1. Revert all modified tracked files to the initial commit
+git reset --hard HEAD
+
+# 2. Remove all newly created untracked files and directories
+git clean -fd
+\end{lstlisting}
+
+\begin{recoverybox}
+\textbf{The Golden Guarantee:} Running \texttt{git reset --hard HEAD \&\& git clean -fd} completely purges every uncommitted file alteration and newly created artifact, resetting the workspace to the exact byte-level state of the last recorded commit.
+\end{recoverybox}
+
+\section{Standard Operating Procedure (SOP) Lifecycle}
+
+The recommended operational cycle for running \texttt{agy} sessions without state contamination follows a structured four-stage pattern:
+
+\begin{enumerate}[leftmargin=2em, itemsep=0.8em]
+    \item \textbf{Pre-Flight (Baseline):} Ensure your base branch is up to date and clean.
+    \begin{lstlisting}[language=bash]
+    git checkout main
+    git pull origin main
+    git status  # Must show 'working tree clean'
+    \end{lstlisting}
+
+    \item \textbf{Branch \& Launch:} Isolate the execution context.
+    \begin{lstlisting}[language=bash]
+    git checkout -b agy/refactor-pipeline
+    agy
+    \end{lstlisting}
+
+    \item \textbf{Post-Session Triage (Post-Flight):}
+    \begin{itemize}[leftmargin=1.5em, itemsep=0.3em]
+        \item \textbf{Scenario A: Interrupted / Corrupted.} Run the recovery hatch:
+        \begin{lstlisting}[language=bash]
+        git reset --hard HEAD
+        git clean -fd
+        \end{lstlisting}
+        \item \textbf{Scenario B: Successful Run.} Inspect diffs, test, and commit:
+        \begin{lstlisting}[language=bash]
+        git diff
+        git add -A
+        git commit -m "feat(pipeline): automated refactor via agy"
+        \end{lstlisting}
+    \end{itemize}
+
+    \item \textbf{Integration or Teardown:}
+    \begin{itemize}[leftmargin=1.5em, itemsep=0.3em]
+        \item If accepted: Merge back into \texttt{main} via fast-forward or squash merge:
+        \begin{lstlisting}[language=bash]
+        git checkout main
+        git merge agy/refactor-pipeline
+        git branch -d agy/refactor-pipeline
+        \end{lstlisting}
+        \item If rejected: Force delete the branch without touching \texttt{main}:
+        \begin{lstlisting}[language=bash]
+        git checkout main
+        git branch -D agy/refactor-pipeline
+        \end{lstlisting}
+    \end{itemize}
+\end{enumerate}
+
+\section{Automating the Workflow with a BASH Helper}
+
+To avoid repetitive manual branch creation and pre-flight checks, add the following helper function to your \texttt{\textasciitilde/.bashrc}:
+
+\begin{lstlisting}[language=bash]
+# Safe wrapper for Google Antigravity CLI sessions
+agy_sandbox() {
+    local task_name="${1:-scratch}"
+    local branch_name="agy/${task_name}-$(date +%Y%m%d-%H%M%S)"
+
+    # Ensure repository is clean
+    if ! git diff-index --quiet HEAD -- 2>/dev/null; then
+        echo "Error: Working directory has uncommitted changes. Stash or commit first."
+        return 1
+    fi
+
+    echo "Creating sandbox branch: ${branch_name}"
+    git checkout -b "${branch_name}" || return 1
+
+    echo "Launching Antigravity CLI..."
+    agy
+
+    echo ""
+    echo "Session completed or exited."
+    echo "Current branch: ${branch_name}"
+    echo "To keep work:    git add -A && git commit -m '...'"
+    echo "To reset state:  git reset --hard HEAD && git clean -fd"
+    echo "To abandon:      git checkout main && git branch -D ${branch_name}"
+}
+\end{lstlisting}
+
+\section{Summary Reference Table}
+
+\begin{center}
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Goal} & \textbf{Git Command} & \textbf{Operational Effect} \\ \midrule
+Isolate agent session & \texttt{git checkout -b agy/<task>} & Prevents pollution of \texttt{main} \\
+Stash local work & \texttt{git stash -u} & Preserves prior uncommitted work \\
+Audit agent changes & \texttt{git status} / \texttt{git diff} & Reviews modified and new files \\
+Revert tracked edits & \texttt{git reset --hard HEAD} & Restores tracked files to base \\
+Purge new artifacts & \texttt{git clean -fd} & Deletes unversioned files/dirs \\
+Abandon entire attempt & \texttt{git checkout main \&\& git branch -D <branch>} & Leaves zero trace of session \\ \bottomrule
+\end{tabular}
+\end{center}
+
+\end{document}
