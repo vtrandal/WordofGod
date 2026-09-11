@@ -55,7 +55,15 @@ The following components have been developed, tested, and are currently function
 * **Details**:
   * Identical elegant visual layout as the master directory, but all 67 book links use high-speed GitHub CDN URLs (`https://cdn.jsdelivr.net/gh/vtrandal/WordofGod@main/books/...`) returning `Content-Type: application/pdf`.
   * **100% Mobile & Cloud Portable**: Works seamlessly on iPhone (via iCloud, Safari, or Files app), iPad, Android, and web without needing the `./books/` folder on the device.
-  * Streams and opens books directly on the fly from your GitHub cloud repository with zero "Save As" prompts.
+### F. Progressive Web App (PWA) Mobile Scripture & Audio Reader
+* **Status**: Implemented & Verified
+* **Files**: [`manifest.json`](file:///home/vtrandal/Documents/projects/WordofGod/manifest.json), [`sw.js`](file:///home/vtrandal/Documents/projects/WordofGod/sw.js), [`icons/`](file:///home/vtrandal/Documents/projects/WordofGod/icons/), [`index.html`](file:///home/vtrandal/Documents/projects/WordofGod/index.html)
+* **Details**:
+  * **Zero-Install App Experience**: Installs directly to iPhone and Android home screens as a full-screen standalone application with custom high-res icons without requiring App Store approval or compilation binaries.
+  * **Dynamic Text Reflow**: Solves the mobile PDF pinch-and-zoom limitation with responsive layout and customizable font sizing.
+  * **Synchronized Audio Narration (Word-of-Promise Experience)**: Integrated audio narration engine with real-time synchronized verse highlighting and automatic scrolling (demonstrated on Genesis 1).
+  * **Lock-Screen Media Controls**: Integrates with the native `MediaSession` API to display track metadata and playback controls on the device lock screen and Control Center.
+  * **Offline Service Worker Caching**: Intercepts requests to cache app assets and documents locally for guaranteed offline use.
 
 ---
 

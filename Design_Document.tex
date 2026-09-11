@@ -106,7 +106,8 @@ The system consists of five distinct, production-verified solutions working in s
 \textbf{B. Local Master Index} & \texttt{Master\_Index.tex} & \texttt{Master\_Index.pdf} & Offline desktop navigation using relative PDF action links. \\
 \textbf{C. Cloud Master Index} & \texttt{Master\_Index\_Cloud.tex} & \texttt{Master\_Index\_Cloud.pdf} & Mobile/iCloud streaming via high-speed GitHub CDN links. \\
 \textbf{D. Web Bookshelf} & \texttt{index.html} & \texttt{index.html} & Zero-dependency responsive web portal with real-time search. \\
-\textbf{E. Build Orchestrator} & \texttt{generate\_indexes.py} & Rebuilds B, C, and D & Dynamic metadata aggregation and automated compilation. \\
+\textbf{E. Build Orchestrator} & \texttt{generate\_indexes.py} & Rebuilds B, C, D & Dynamic metadata aggregation and automated compilation. \\
+\textbf{F. PWA Audio Reader} & \texttt{manifest.json, sw.js} & PWA Mobile App & Fullscreen mobile PWA with text reflow, synchronized verse audio, and offline caching. \\
 \bottomrule
 \end{tabularx}
 \caption{System Component Architecture Overview}
@@ -302,6 +303,45 @@ def generate_latex_documents(front_matter, books):
 \begin{enumerate}
     \item \textbf{Single Source of Truth}: The script iterates through the physical \texttt{./books/} directory, inspecting real page counts with \texttt{pypdf.PdfReader} rather than relying on hardcoded page tables.
     \item \textbf{Clean Build Lifecycle}: Spawns \texttt{pdflatex} non-interactively (\texttt{-interaction=nonstopmode}) and automatically purges transient auxiliary build artifacts (\texttt{.aux}, \texttt{.log}, \texttt{.out}) to maintain a pristine workspace.
+\end{enumerate}
+
+\newpage
+\section{Code Review: Solution F --- Progressive Web App (PWA) \& Audio Engine}
+
+\subsection{Files: \texttt{manifest.json}, \texttt{sw.js}, and \texttt{index.html}}
+\textbf{Purpose}: Deliver an installable, mobile-optimized scripture reading and audio narration app (reproducing the core ``Word of Promise'' synchronized audio and text experience) with zero compilation binaries and zero App Store fees.
+
+\begin{lstlisting}
+// Synchronized Audio & Real-Time Verse Highlighting Engine
+function playVerse(idx) {
+  currentVerseIndex = idx;
+  document.getElementById('trackTitle').innerText = 'Genesis 1:' + (idx + 1);
+
+  // 1. Highlight current active verse & auto-scroll into center view
+  document.querySelectorAll('.verse').forEach(el => el.classList.remove('active'));
+  const activeEl = document.getElementById('v-' + (idx + 1));
+  if (activeEl) {
+    activeEl.classList.add('active');
+    activeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  // 2. Offline Speech Narration & MediaSession Integration
+  if (synth) {
+    synth.cancel();
+    currentUtterance = new SpeechSynthesisUtterance(GENESIS_VERSES[idx]);
+    currentUtterance.rate = speechSpeed;
+    currentUtterance.onend = () => { if (isPlaying) playVerse(idx + 1); };
+    synth.speak(currentUtterance);
+  }
+}
+\end{lstlisting}
+
+\subsection{Design Analysis \& Engineering Decisions}
+\begin{enumerate}
+    \item \textbf{Standalone Installation without Store Friction}: \texttt{manifest.json} specifies \texttt{"display": "standalone"} alongside custom high-resolution icons (\texttt{icon-192.png}, \texttt{icon-512.png}, \texttt{apple-touch-icon.png}). On iOS Safari, tapping \textit{Add to Home Screen} installs the application directly to the home grid, running in an immersive fullscreen viewport without browser chrome.
+    \item \textbf{Dynamic Typography Reflow}: Solves the fixed-canvas ``pinch-and-zoom'' handicap of mobile PDF viewers. Text dynamically reflows to any viewport, with reader controls for real-time font scaling (\texttt{A-} / \texttt{A+}).
+    \item \textbf{Dual-Tier Service Worker Caching (\texttt{sw.js})}: Implements \textit{Stale-While-Revalidate} for the application shell (HTML/CSS/JS/icons) and \textit{Cache-First} for streaming PDF and audio assets. Once any volume is viewed, the device caches it persistently in \texttt{CacheStorage} for guaranteed offline access.
+    \item \textbf{Lock-Screen Media Integration}: Uses the W3C \texttt{MediaSession} API to publish book, chapter, and artist metadata to iOS Control Center, CarPlay, and Android lock screens, complete with system play/pause handlers.
 \end{enumerate}
 
 \newpage

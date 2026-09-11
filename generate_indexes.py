@@ -1,11 +1,44 @@
 import os
 import glob
 import subprocess
+import json
 from pypdf import PdfReader
 
-# High-speed CDN mirror for GitHub repository that serves Content-Type: application/pdf
-# enabling on-the-fly inline viewing in iOS Safari, Files app, and desktop browsers
 CDN_BASE = "https://cdn.jsdelivr.net/gh/vtrandal/WordofGod@main/books"
+
+GENESIS_1_VERSES = [
+    "In the beginning God created the heaven and the earth.",
+    "And the earth was without form, and void; and darkness was upon the face of the deep. And the Spirit of God moved upon the face of the waters.",
+    "And God said, Let there be light: and there was light.",
+    "And God saw the light, that it was good: and God divided the light from the darkness.",
+    "And God called the light Day, and the darkness he called Night. And the evening and the morning were the first day.",
+    "And God said, Let there be a firmament in the midst of the waters, and let it divide the waters from the waters.",
+    "And God made the firmament, and divided the waters which were under the firmament from the waters which were above the firmament: and it was so.",
+    "And God called the firmament Heaven. And the evening and the morning were the second day.",
+    "And God said, Let the waters under the heaven be gathered together unto one place, and let the dry land appear: and it was so.",
+    "And God called the dry land Earth; and the gathering together of the waters called he Seas: and God saw that it was good.",
+    "And God said, Let the earth bring forth grass, the herb yielding seed, and the fruit tree yielding fruit after his kind, whose seed is in itself, upon the earth: and it was so.",
+    "And the earth brought forth grass, and herb yielding seed after his kind, and the tree yielding fruit, whose seed was in itself, after his kind: and God saw that it was good.",
+    "And the evening and the morning were the third day.",
+    "And God said, Let there be lights in the firmament of the heaven to divide the day from the night; and let them be for signs, and for seasons, and for days, and years:",
+    "And let them be for lights in the firmament of the heaven to give light upon the earth: and it was so.",
+    "And God made two great lights; the greater light to rule the day, and the lesser light to rule the night: he made the stars also.",
+    "And God set them in the firmament of the heaven to give light upon the earth,",
+    "And to rule over the day and over the night, and to divide the light from the darkness: and God saw that it was good.",
+    "And the evening and the morning were the fourth day.",
+    "And God said, Let the waters bring forth abundantly the moving creature that hath life, and fowl that may fly above the earth in the open firmament of heaven.",
+    "And God created great whales, and every living creature that moveth, which the waters brought forth abundantly, after their kind, and every winged fowl after his kind: and God saw that it was good.",
+    "And God blessed them, saying, Be fruitful, and multiply, and fill the waters in the seas, and let fowl multiply in the earth.",
+    "And the evening and the morning were the fifth day.",
+    "And God said, Let the earth bring forth the living creature after his kind, cattle, and creeping thing, and beast of the earth after his kind: and it was so.",
+    "And God made the beast of the earth after his kind, and cattle after their kind, and every thing that creepeth upon the earth after his kind: and God saw that it was good.",
+    "And God said, Let us make man in our image, after our likeness: and let them have dominion over the fish of the sea, and over the fowl of the air, and over the cattle, and over all the earth, and over every creeping thing that creepeth upon the earth.",
+    "So God created man in his own image, in the image of God created he him; male and female created he them.",
+    "And God blessed them, and God said unto them, Be fruitful, and multiply, and replenish the earth, and subdue it: and have dominion over the fish of the sea, and over the fowl of the air, and over every living thing that moveth upon the earth.",
+    "And God said, Behold, I have given you every herb bearing seed, which is upon the face of all the earth, and every tree, in the which is the fruit of a tree yielding seed; to you it shall be for meat.",
+    "And to every beast of the earth, and to every fowl of the air, and to every thing that creepeth upon the earth, wherein there is life, I have given every green herb for meat: and it was so.",
+    "And God saw every thing that he had made, and, behold, it was very good. And the evening and the morning were the sixth day."
+]
 
 def get_book_metadata():
     files = sorted(glob.glob("books/[0-9][0-9]_*.pdf"))
@@ -47,7 +80,7 @@ def generate_latex_documents(front_matter, books):
     ot_books = [b for b in books if b["testament"] == "OT"]
     nt_books = [b for b in books if b["testament"] == "NT"]
 
-    # 1. Local Edition (Master_Index.tex) - Remains completely intact for local offline use
+    # 1. Local Edition (Master_Index.tex)
     _build_single_tex(
         tex_filename="Master_Index.tex",
         pdf_filename="Master_Index.pdf",
@@ -59,7 +92,7 @@ def generate_latex_documents(front_matter, books):
         front_matter_link="books/00_Front_Matter.pdf"
     )
 
-    # 2. Cloud Edition (Master_Index_Cloud.tex) - CDN Streamed for On-The-Fly Viewing
+    # 2. Cloud Edition (Master_Index_Cloud.tex)
     _build_single_tex(
         tex_filename="Master_Index_Cloud.tex",
         pdf_filename="Master_Index_Cloud.pdf",
@@ -162,267 +195,486 @@ def _build_single_tex(tex_filename, pdf_filename, subtitle_note, ot_books, nt_bo
 """
     with open(tex_filename, "w") as f:
         f.write(tex)
-    print(f"Generated {tex_filename}")
 
-    print(f"Compiling {tex_filename} via pdflatex...")
     result = subprocess.run(["pdflatex", "-interaction=nonstopmode", tex_filename], capture_output=True, text=True)
     if result.returncode == 0:
-        print(f"Successfully generated {pdf_filename}!")
         base_name = os.path.splitext(tex_filename)[0]
         for ext in [".aux", ".log", ".out"]:
             aux_f = f"{base_name}{ext}"
             if os.path.exists(aux_f):
                 os.remove(aux_f)
     else:
-        print(f"pdflatex compilation failed for {tex_filename}. Error log:")
-        print(result.stdout[-1000:])
+        print(f"Compilation error in {tex_filename}:", result.stdout[-500:])
 
-def generate_html_bookshelf(front_matter, books):
+def generate_html_pwa_app(front_matter, books):
     ot_books = [b for b in books if b["testament"] == "OT"]
     nt_books = [b for b in books if b["testament"] == "NT"]
 
-    html = """<!DOCTYPE html>
+    verses_json = json.dumps(GENESIS_1_VERSES)
+
+    html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Holy Bible — KJV (1769) Bookshelf</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Word of God — Holy Bible (KJV 1769)</title>
+
+    <!-- PWA Manifest & Meta Tags -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#1e3a8a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Word of God">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+    <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+    <link rel="icon" type="image/png" href="icons/icon-192.png">
+
     <style>
-        :root {
+        :root {{
             --bg: #f8fafc;
             --card-bg: #ffffff;
-            --text-primary: #1e293b;
-            --text-secondary: #64748b;
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
             --accent: #1e3a8a;
             --accent-light: #eff6ff;
+            --gold: #d97706;
+            --gold-light: #fef3c7;
             --border: #e2e8f0;
             --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
-            --shadow-hover: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
-        }
-        @media (prefers-color-scheme: dark) {
-            :root {
-                --bg: #0f172a;
-                --card-bg: #1e293b;
-                --text-primary: #f1f5f9;
+            --shadow-hover: 0 6px 12px -2px rgba(0,0,0,0.12), 0 3px 6px -2px rgba(0,0,0,0.08);
+            --font-reader: Georgia, Cambria, "Times New Roman", Times, serif;
+        }}
+        @media (prefers-color-scheme: dark) {{
+            :root {{
+                --bg: #0b0f19;
+                --card-bg: #151d30;
+                --text-primary: #f8fafc;
                 --text-secondary: #94a3b8;
                 --accent: #60a5fa;
                 --accent-light: #172554;
-                --border: #334155;
-                --shadow: 0 1px 3px rgba(0,0,0,0.4);
-                --shadow-hover: 0 4px 8px rgba(0,0,0,0.5);
-            }
-        }
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+                --gold: #f59e0b;
+                --gold-light: #451a03;
+                --border: #1e293b;
+                --shadow: 0 2px 4px rgba(0,0,0,0.5);
+                --shadow-hover: 0 8px 16px rgba(0,0,0,0.6);
+            }}
+        }}
+        * {{ box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }}
+        body {{
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             background-color: var(--bg);
             color: var(--text-primary);
             line-height: 1.5;
-            padding: 2.5rem 1rem;
-        }
-        .container {
+            padding-bottom: 5rem;
+            min-height: 100vh;
+        }}
+        .container {{
             max-width: 1050px;
             margin: 0 auto;
-        }
-        header {
-            text-align: center;
-            margin-bottom: 2.5rem;
-        }
-        h1 {
-            font-size: 2.4rem;
-            font-family: Georgia, Cambria, "Times New Roman", Times, serif;
+            padding: 1.5rem 1rem;
+        }}
+        /* PWA Header Bar */
+        .app-bar {{
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.5rem 0 1.25rem;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 1.5rem;
+        }}
+        .app-brand {{
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }}
+        .app-icon-img {{
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+        }}
+        .app-brand-text h2 {{
+            font-size: 1.25rem;
+            font-family: var(--font-reader);
             font-weight: 700;
             color: var(--accent);
-            margin-bottom: 0.35rem;
-            letter-spacing: -0.02em;
-        }
-        .subtitle {
+            line-height: 1.1;
+        }}
+        .app-brand-text span {{
+            font-size: 0.75rem;
             color: var(--text-secondary);
-            font-size: 1.15rem;
-            margin-bottom: 1.25rem;
-        }
-        .meta-badges {
+        }}
+        .pwa-controls {{
             display: flex;
-            gap: 0.75rem;
-            justify-content: center;
-            flex-wrap: wrap;
-            margin-bottom: 1.5rem;
-        }
-        .badge {
-            background-color: var(--accent-light);
-            color: var(--accent);
-            padding: 0.35rem 0.85rem;
-            border-radius: 9999px;
-            font-size: 0.85rem;
-            font-weight: 600;
-            border: 1px solid var(--border);
-        }
-        .actions-bar {
-            display: flex;
-            justify-content: center;
-            gap: 1rem;
-            margin-bottom: 2rem;
-            flex-wrap: wrap;
-        }
-        .btn {
-            display: inline-flex;
             align-items: center;
             gap: 0.5rem;
-            padding: 0.65rem 1.35rem;
+        }}
+        .badge-status {{
+            font-size: 0.75rem;
+            padding: 0.25rem 0.6rem;
+            border-radius: 9999px;
+            background: #dcfce7;
+            color: #15803d;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+        }}
+        @media (prefers-color-scheme: dark) {{
+            .badge-status {{ background: #064e3b; color: #6ee7b7; }}
+        }}
+        .btn-install {{
+            background: var(--gold);
+            color: #ffffff;
+            border: none;
+            padding: 0.4rem 0.85rem;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: none;
+        }}
+        /* Hero Section */
+        .hero {{
+            text-align: center;
+            margin-bottom: 2rem;
+        }}
+        .hero h1 {{
+            font-size: 2.3rem;
+            font-family: var(--font-reader);
+            color: var(--accent);
+            letter-spacing: -0.01em;
+            margin-bottom: 0.35rem;
+        }}
+        .hero p {{
+            color: var(--text-secondary);
+            font-size: 1rem;
+            margin-bottom: 1.25rem;
+        }}
+        .actions-bar {{
+            display: flex;
+            justify-content: center;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+            margin-bottom: 1.5rem;
+        }}
+        .btn {{
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.6rem 1.15rem;
             border-radius: 8px;
             font-weight: 600;
+            font-size: 0.9rem;
             text-decoration: none;
-            font-size: 0.95rem;
-            transition: all 0.15s ease-in-out;
-        }
-        .btn-primary {
-            background-color: var(--accent);
-            color: #ffffff;
-        }
-        .btn-primary:hover {
-            opacity: 0.92;
-            transform: translateY(-1px);
-        }
-        .btn-cloud {
-            background-color: #0284c7;
-            color: #ffffff;
-        }
-        .btn-cloud:hover {
-            background-color: #0369a1;
-            transform: translateY(-1px);
-        }
-        .btn-outline {
-            background-color: var(--card-bg);
-            color: var(--text-primary);
+            cursor: pointer;
+            transition: all 0.15s;
+        }}
+        .btn-primary {{ background: var(--accent); color: #fff; }}
+        .btn-cloud {{ background: #0284c7; color: #fff; }}
+        .btn-listen {{ background: var(--gold); color: #fff; }}
+        .btn-outline {{ background: var(--card-bg); color: var(--text-primary); border: 1px solid var(--border); }}
+        .btn:hover {{ opacity: 0.92; transform: translateY(-1px); }}
+
+        /* Live Demonstration Banner */
+        .demo-card {{
+            background: linear-gradient(135deg, rgba(30,58,138,0.08), rgba(217,119,6,0.12));
             border: 1px solid var(--border);
-        }
-        .btn-outline:hover {
-            background-color: var(--accent-light);
-            border-color: var(--accent);
-        }
-        .search-container {
+            border-radius: 12px;
+            padding: 1.25rem;
+            margin-bottom: 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }}
+        .demo-info h3 {{
+            font-family: var(--font-reader);
+            font-size: 1.15rem;
+            color: var(--accent);
+            margin-bottom: 0.25rem;
+        }}
+        .demo-info p {{
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }}
+
+        /* Search Input */
+        .search-container {{
             margin-bottom: 2rem;
             display: flex;
             justify-content: center;
-        }
-        .search-box {
+        }}
+        .search-box {{
             width: 100%;
             max-width: 520px;
-            padding: 0.8rem 1.25rem;
+            padding: 0.75rem 1.25rem;
             border-radius: 12px;
             border: 1px solid var(--border);
             background: var(--card-bg);
             color: var(--text-primary);
-            font-size: 1rem;
+            font-size: 0.95rem;
             outline: none;
             box-shadow: var(--shadow);
-            transition: border-color 0.15s;
-        }
-        .search-box:focus {
-            border-color: var(--accent);
-        }
-        .grid-sections {
+        }}
+        .search-box:focus {{ border-color: var(--accent); }}
+
+        /* Testament Columns */
+        .grid-sections {{
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 2rem;
-        }
-        @media (max-width: 768px) {
-            .grid-sections {
-                grid-template-columns: 1fr;
-            }
-        }
-        .section-header {
-            font-size: 1.35rem;
-            font-family: Georgia, serif;
+            gap: 1.5rem;
+        }}
+        @media (max-width: 768px) {{
+            .grid-sections {{ grid-template-columns: 1fr; }}
+            .hero h1 {{ font-size: 1.85rem; }}
+        }}
+        .section-header {{
+            font-size: 1.25rem;
+            font-family: var(--font-reader);
             color: var(--accent);
             padding-bottom: 0.5rem;
-            margin-bottom: 1rem;
+            margin-bottom: 0.85rem;
             border-bottom: 2px solid var(--border);
             display: flex;
             justify-content: space-between;
             align-items: baseline;
-        }
-        .section-header span {
-            font-size: 0.85rem;
+        }}
+        .section-header span {{
+            font-size: 0.8rem;
             color: var(--text-secondary);
             font-family: sans-serif;
-            font-weight: normal;
-        }
-        .books-list {
+        }}
+        .books-list {{
             display: flex;
             flex-direction: column;
             gap: 0.45rem;
-        }
-        .book-card {
+        }}
+        .book-card {{
             display: flex;
             align-items: center;
             justify-content: space-between;
             background: var(--card-bg);
             border: 1px solid var(--border);
             border-radius: 8px;
-            padding: 0.6rem 1rem;
+            padding: 0.6rem 0.9rem;
             text-decoration: none;
             color: var(--text-primary);
             box-shadow: var(--shadow);
-            transition: all 0.15s ease-in-out;
-        }
-        .book-card:hover {
-            transform: translateX(4px);
+            transition: transform 0.15s, border-color 0.15s;
+        }}
+        .book-card:hover {{
+            transform: translateX(3px);
             border-color: var(--accent);
-            box-shadow: var(--shadow-hover);
-        }
-        .book-info {
+        }}
+        .book-info {{
             display: flex;
             align-items: center;
-            gap: 0.75rem;
-        }
-        .book-num {
-            font-size: 0.8rem;
+            gap: 0.65rem;
+        }}
+        .book-num {{
+            font-size: 0.75rem;
             font-weight: 700;
             color: var(--text-secondary);
-            width: 1.75rem;
-        }
-        .book-title {
+            width: 1.6rem;
+        }}
+        .book-title {{
             font-size: 0.95rem;
             font-weight: 600;
-        }
-        .book-pages {
-            font-size: 0.8rem;
-            color: var(--text-secondary);
-            background: var(--accent-light);
-            padding: 0.2rem 0.55rem;
+        }}
+        .book-actions {{
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }}
+        .btn-sm {{
+            font-size: 0.75rem;
+            padding: 0.25rem 0.55rem;
             border-radius: 4px;
-        }
-        footer {
-            margin-top: 3.5rem;
-            text-align: center;
-            color: var(--text-secondary);
+            text-decoration: none;
+            font-weight: 600;
+        }}
+        .btn-read {{
+            background: var(--gold-light);
+            color: var(--gold);
+            border: 1px solid rgba(217, 119, 6, 0.3);
+        }}
+        .btn-pdf {{
+            background: var(--accent-light);
+            color: var(--accent);
+        }}
+
+        /* Reader / Audio Modal */
+        .reader-modal {{
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: var(--bg);
+            z-index: 9999;
+            overflow-y: auto;
+            padding: 1rem;
+        }}
+        .reader-container {{
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 1rem 0 6rem;
+        }}
+        .reader-header {{
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            background: var(--bg);
+            padding: 0.75rem 0;
+            border-bottom: 1px solid var(--border);
+            z-index: 10;
+        }}
+        .btn-close {{
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            padding: 0.4rem 0.8rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+        }}
+        .reader-typography-controls {{
+            display: flex;
+            gap: 0.5rem;
+        }}
+        .btn-font {{
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            padding: 0.3rem 0.6rem;
+            border-radius: 4px;
+            cursor: pointer;
             font-size: 0.85rem;
-        }
+            color: var(--text-primary);
+        }}
+        .reader-content {{
+            margin-top: 1.5rem;
+            font-family: var(--font-reader);
+            font-size: 1.15rem;
+            line-height: 1.85;
+        }}
+        .reader-title {{
+            font-size: 1.8rem;
+            color: var(--accent);
+            margin-bottom: 0.5rem;
+            font-weight: 700;
+        }}
+        .verse {{
+            padding: 0.4rem 0.6rem;
+            margin-bottom: 0.35rem;
+            border-radius: 6px;
+            transition: all 0.25s ease-in-out;
+        }}
+        .verse-num {{
+            font-weight: 700;
+            font-size: 0.75rem;
+            color: var(--gold);
+            vertical-align: super;
+            margin-right: 0.35rem;
+        }}
+        .verse.active {{
+            background-color: var(--gold-light);
+            box-shadow: 0 0 0 2px var(--gold);
+            transform: scale(1.01);
+        }}
+        /* Audio Player Bar */
+        .audio-bar {{
+            position: fixed;
+            bottom: 0; left: 0; right: 0;
+            background: var(--card-bg);
+            border-top: 1px solid var(--border);
+            padding: 0.75rem 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+            box-shadow: 0 -4px 12px rgba(0,0,0,0.1);
+            z-index: 100;
+        }}
+        .btn-play {{
+            background: var(--accent);
+            color: #fff;
+            border: none;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            font-size: 1.1rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: var(--shadow);
+        }}
+        .audio-track-info {{
+            font-size: 0.85rem;
+        }}
+        .audio-track-info .track-title {{
+            font-weight: 700;
+            color: var(--text-primary);
+        }}
+        .audio-track-info .track-sub {{
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }}
+        .speed-select {{
+            background: var(--bg);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 0.3rem 0.5rem;
+            font-size: 0.8rem;
+        }}
     </style>
 </head>
 <body>
     <div class="container">
-        <header>
-            <h1>The Holy Bible</h1>
-            <div class="subtitle">Authorized King James Version (1769 Standard Text)</div>
-            <div class="meta-badges">
-                <span class="badge">66 Books</span>
-                <span class="badge">1,437 Pages</span>
-                <span class="badge">Hosted on GitHub: vtrandal/WordofGod</span>
+        <!-- PWA Top App Bar -->
+        <div class="app-bar">
+            <div class="app-brand">
+                <img src="icons/icon-192.png" class="app-icon-img" alt="App Icon">
+                <div class="app-brand-text">
+                    <h2>Word of God</h2>
+                    <span>Holy Bible &bull; KJV 1769 Authorized Version</span>
+                </div>
             </div>
+            <div class="pwa-controls">
+                <span class="badge-status" id="offlineStatus">● Offline Ready</span>
+                <button class="btn-install" id="installBtn" onclick="installPWA()">📲 Install App</button>
+            </div>
+        </div>
+
+        <header class="hero">
+            <h1>The Holy Bible</h1>
+            <p>66 Canonical Books &bull; 1,437 Pages &bull; Progressive Web App (PWA)</p>
             <div class="actions-bar">
                 <a href="Master_Index_Cloud.pdf" class="btn btn-cloud" target="_blank">
-                    ☁️ Open Cloud Master Index (iPhone / Web)
+                    ☁️ Cloud Master Index (iPhone)
                 </a>
                 <a href="Master_Index.pdf" class="btn btn-primary" target="_blank">
-                    📄 Open Local Master Index
+                    📄 Local Master Index
                 </a>
                 <a href="books/00_Front_Matter.pdf" class="btn btn-outline" target="_blank">
-                    📖 Read Front Matter
+                    📖 Front Matter
                 </a>
             </div>
         </header>
+
+        <!-- Live Audio Synchronization Demonstration Card -->
+        <div class="demo-card">
+            <div class="demo-info">
+                <h3>🎙️ "Word of Promise" Experience Demo</h3>
+                <p>Listen to Genesis Chapter 1 with live, synchronized real-time verse highlighting and automatic scrolling.</p>
+            </div>
+            <button class="btn btn-listen" onclick="openReader('Genesis', 1)">
+                ▶ Read &amp; Listen: Genesis 1
+            </button>
+        </div>
 
         <div class="search-container">
             <input type="text" id="searchBox" class="search-box" placeholder="Quick search book by name (e.g. Genesis, Matthew, Romans)..." oninput="filterBooks()">
@@ -438,13 +690,19 @@ def generate_html_bookshelf(front_matter, books):
                 <div class="books-list" id="otList">
 """
     for b in ot_books:
-        html += f"""                    <a href="{b['cloud_url']}" class="book-card" data-title="{b['title'].lower()}" target="_blank">
+        # If Genesis, offer Read in App + View PDF; for others offer Read / PDF
+        is_demo = (b["num"] == 1)
+        btn_read = f'<button class="btn-sm btn-read" onclick="openReader(\'{b["title"]}\', 1)">▶ Listen</button>' if is_demo else ''
+        html += f"""                    <div class="book-card" data-title="{b['title'].lower()}">
                         <div class="book-info">
                             <span class="book-num">{b['num']:02d}</span>
                             <span class="book-title">{b['title']}</span>
                         </div>
-                        <span class="book-pages">{b['pages']} pp.</span>
-                    </a>
+                        <div class="book-actions">
+                            {btn_read}
+                            <a href="{b['cloud_url']}" class="btn-sm btn-pdf" target="_blank">{b['pages']} pp. ↗</a>
+                        </div>
+                    </div>
 """
 
     html += """                </div>
@@ -459,46 +717,226 @@ def generate_html_bookshelf(front_matter, books):
                 <div class="books-list" id="ntList">
 """
     for b in nt_books:
-        html += f"""                    <a href="{b['cloud_url']}" class="book-card" data-title="{b['title'].lower()}" target="_blank">
+        html += f"""                    <div class="book-card" data-title="{b['title'].lower()}">
                         <div class="book-info">
                             <span class="book-num">{b['num']:02d}</span>
                             <span class="book-title">{b['title']}</span>
                         </div>
-                        <span class="book-pages">{b['pages']} pp.</span>
-                    </a>
+                        <div class="book-actions">
+                            <a href="{b['cloud_url']}" class="btn-sm btn-pdf" target="_blank">{b['pages']} pp. ↗</a>
+                        </div>
+                    </div>
 """
 
-    html += """                </div>
+    html += f"""                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PWA Interactive Scripture & Audio Reader Modal -->
+    <div id="readerModal" class="reader-modal">
+        <div class="reader-container">
+            <div class="reader-header">
+                <button class="btn-close" onclick="closeReader()">&larr; Back to Library</button>
+                <div class="reader-typography-controls">
+                    <button class="btn-font" onclick="changeFontSize(-1)">A-</button>
+                    <button class="btn-font" onclick="changeFontSize(1)">A+</button>
+                </div>
+            </div>
+
+            <div class="reader-content" id="readerContent">
+                <div class="reader-title" id="modalBookTitle">The First Book of Moses, called Genesis</div>
+                <h3 style="color: var(--text-secondary); margin-bottom: 1.5rem; font-family: sans-serif; font-size: 1rem;">Chapter 1</h3>
+
+                <div id="versesContainer"></div>
             </div>
         </div>
 
-        <footer>
-            <p>Word of God &bull; Individual PDFs generated from 1769 King James text &bull; GitHub Cloud Hosted &bull; Standalone</p>
-        </footer>
+        <!-- Sticky Floating Audio Control Bar -->
+        <div class="audio-bar">
+            <button class="btn-play" id="playBtn" onclick="togglePlayAudio()">▶</button>
+            <div class="audio-track-info">
+                <div class="track-title" id="trackTitle">Genesis 1:1</div>
+                <div class="track-sub">King James Authorized Version (1769)</div>
+            </div>
+            <select class="speed-select" id="speedSelect" onchange="changeSpeed(this.value)">
+                <option value="0.75">0.75x</option>
+                <option value="1.0" selected>1.0x</option>
+                <option value="1.25">1.25x</option>
+                <option value="1.5">1.5x</option>
+            </select>
+        </div>
     </div>
 
     <script>
-        function filterBooks() {
+        const GENESIS_VERSES = {verses_json};
+
+        let currentVerseIndex = -1;
+        let isPlaying = false;
+        let synth = window.speechSynthesis;
+        let currentUtterance = null;
+        let speechSpeed = 1.0;
+        let fontSizePx = 18;
+
+        // Register Service Worker for PWA
+        if ('serviceWorker' in navigator) {{
+            window.addEventListener('load', () => {{
+                navigator.serviceWorker.register('./sw.js')
+                    .then(() => {{
+                        document.getElementById('offlineStatus').innerText = '● Offline Ready';
+                    }})
+                    .catch(() => {{
+                        document.getElementById('offlineStatus').innerText = 'Online';
+                    }});
+            }});
+        }}
+
+        // Handle PWA Installation
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {{
+            e.preventDefault();
+            deferredPrompt = e;
+            const btn = document.getElementById('installBtn');
+            if (btn) btn.style.display = 'inline-block';
+        }});
+
+        function installPWA() {{
+            if (deferredPrompt) {{
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then(() => {{
+                    deferredPrompt = null;
+                    document.getElementById('installBtn').style.display = 'none';
+                }});
+            }} else {{
+                alert('On iPhone: Tap the Share button at the bottom of Safari and select "Add to Home Screen" to install!');
+            }}
+        }}
+
+        function filterBooks() {{
             const query = document.getElementById('searchBox').value.trim().toLowerCase();
             const cards = document.querySelectorAll('.book-card');
-            cards.forEach(card => {
+            cards.forEach(card => {{
                 const title = card.getAttribute('data-title');
-                if (title.includes(query)) {
-                    card.style.display = 'flex';
-                } else {
-                    card.style.display = 'none';
-                }
-            });
-        }
+                card.style.display = title.includes(query) ? 'flex' : 'none';
+            }});
+        }}
+
+        function openReader(bookTitle, chapterNum) {{
+            const modal = document.getElementById('readerModal');
+            modal.style.display = 'block';
+            window.scrollTo(0, 0);
+
+            const container = document.getElementById('versesContainer');
+            container.innerHTML = '';
+
+            GENESIS_VERSES.forEach((vText, idx) => {{
+                const div = document.createElement('div');
+                div.className = 'verse';
+                div.id = 'v-' + (idx + 1);
+                div.innerHTML = '<span class="verse-num">' + (idx + 1) + '</span> ' + vText;
+                div.onclick = () => jumpToVerse(idx);
+                container.appendChild(div);
+            }});
+
+            // Setup MediaSession API (Lock screen info)
+            if ('mediaSession' in navigator) {{
+                navigator.mediaSession.metadata = new MediaMetadata({{
+                    title: 'Genesis Chapter 1',
+                    artist: 'King James Version (1769)',
+                    album: 'Word of God'
+                }});
+                navigator.mediaSession.setActionHandler('play', togglePlayAudio);
+                navigator.mediaSession.setActionHandler('pause', togglePlayAudio);
+            }}
+        }}
+
+        function closeReader() {{
+            stopAudio();
+            document.getElementById('readerModal').style.display = 'none';
+        }}
+
+        function changeFontSize(delta) {{
+            fontSizePx = Math.max(14, Math.min(28, fontSizePx + delta * 2));
+            document.getElementById('readerContent').style.fontSize = fontSizePx + 'px';
+        }}
+
+        function changeSpeed(val) {{
+            speechSpeed = parseFloat(val);
+            if (isPlaying) {{
+                const idx = currentVerseIndex;
+                stopAudio();
+                playVerse(idx);
+            }}
+        }}
+
+        function togglePlayAudio() {{
+            if (isPlaying) {{
+                stopAudio();
+            }} else {{
+                const startIdx = currentVerseIndex >= 0 ? currentVerseIndex : 0;
+                playVerse(startIdx);
+            }}
+        }}
+
+        function jumpToVerse(idx) {{
+            stopAudio();
+            playVerse(idx);
+        }}
+
+        function playVerse(idx) {{
+            if (idx >= GENESIS_VERSES.length) {{
+                stopAudio();
+                return;
+            }}
+
+            currentVerseIndex = idx;
+            isPlaying = true;
+            document.getElementById('playBtn').innerText = '⏸';
+            document.getElementById('trackTitle').innerText = 'Genesis 1:' + (idx + 1);
+
+            // Highlight current verse in UI
+            document.querySelectorAll('.verse').forEach(el => el.classList.remove('active'));
+            const activeEl = document.getElementById('v-' + (idx + 1));
+            if (activeEl) {{
+                activeEl.classList.add('active');
+                activeEl.scrollIntoView({{ behavior: 'smooth', block: 'center' }});
+            }}
+
+            // Text-To-Speech engine (zero external dependencies, 100% offline)
+            if (synth) {{
+                synth.cancel();
+                const text = GENESIS_VERSES[idx];
+                currentUtterance = new SpeechSynthesisUtterance(text);
+                currentUtterance.rate = speechSpeed;
+                currentUtterance.pitch = 0.95; // Warm biblical cadence
+
+                currentUtterance.onend = () => {{
+                    if (isPlaying) {{
+                        playVerse(idx + 1);
+                    }}
+                }};
+                currentUtterance.onerror = () => {{
+                    stopAudio();
+                }};
+
+                synth.speak(currentUtterance);
+            }}
+        }}
+
+        function stopAudio() {{
+            isPlaying = false;
+            document.getElementById('playBtn').innerText = '▶';
+            if (synth) synth.cancel();
+        }}
     </script>
 </body>
 </html>
 """
     with open("index.html", "w") as f:
         f.write(html)
-    print("Generated index.html")
+    print("Generated PWA index.html with Interactive Audio Reader")
 
 if __name__ == "__main__":
     front_matter, books = get_book_metadata()
     generate_latex_documents(front_matter, books)
-    generate_html_bookshelf(front_matter, books)
+    generate_html_pwa_app(front_matter, books)
