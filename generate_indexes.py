@@ -928,8 +928,7 @@ def generate_html_pwa_app(front_matter, books):
             for (let i = startIdx; i < GENESIS_VERSES.length; i++) {{
                 const vText = GENESIS_VERSES[i].trim();
                 const startChar = fullText.length;
-                // Add natural breathing pause between verses
-                fullText += vText + " \n\n";
+                fullText += vText + " ";
                 const endChar = fullText.length;
                 verseOffsets.push({{
                     index: i,
