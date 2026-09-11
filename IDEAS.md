@@ -53,9 +53,9 @@ The following components have been developed, tested, and are currently function
 * **Output**: [`Master_Index_Cloud.pdf`](file:///home/vtrandal/Documents/projects/WordofGod/Master_Index_Cloud.pdf)
 * **GitHub Repository**: [`https://github.com/vtrandal/WordofGod`](https://github.com/vtrandal/WordofGod)
 * **Details**:
-  * Identical elegant visual layout as the master directory, but all 67 book links use standard `https://raw.githubusercontent.com/vtrandal/WordofGod/main/books/...` URLs.
+  * Identical elegant visual layout as the master directory, but all 67 book links use high-speed GitHub CDN URLs (`https://cdn.jsdelivr.net/gh/vtrandal/WordofGod@main/books/...`) returning `Content-Type: application/pdf`.
   * **100% Mobile & Cloud Portable**: Works seamlessly on iPhone (via iCloud, Safari, or Files app), iPad, Android, and web without needing the `./books/` folder on the device.
-  * Streams books directly from your GitHub cloud repository on demand with zero permission warnings.
+  * Streams and opens books directly on the fly from your GitHub cloud repository with zero "Save As" prompts.
 
 ---
 
