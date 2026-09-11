@@ -77,3 +77,9 @@ The following ideas represent creative, automated ways to achieve alternative ar
 * **Key Properties**:
   * Built using LaTeX and `pdfpages` with internal PDF destinations (`\hyperlink` / `\hypertarget`).
   * The front matter contains the master index; clicking any book jumps internally to that book's start page with zero delay and zero security popups.
+
+### Idea 4: Bulk Offline Caching / One-Click Library Download ("Download entire Bible for offline use")
+* **Concept**: Add a Service Worker / Progressive Web App (PWA) caching mechanism to the web bookshelf or a dedicated background sync script.
+* **Key Properties**:
+  * Offers a single button or automatic background process to pre-fetch and store all 66 books into the browser's persistent local storage.
+  * Allows complete, guaranteed offline reading of all 66 books on mobile or desktop without repeatedly downloading files over the internet.

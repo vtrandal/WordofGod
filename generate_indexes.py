@@ -3,7 +3,9 @@ import glob
 import subprocess
 from pypdf import PdfReader
 
-GITHUB_RAW_BASE = "https://raw.githubusercontent.com/vtrandal/WordofGod/main/books"
+# High-speed CDN mirror for GitHub repository that serves Content-Type: application/pdf
+# enabling on-the-fly inline viewing in iOS Safari, Files app, and desktop browsers
+CDN_BASE = "https://cdn.jsdelivr.net/gh/vtrandal/WordofGod@main/books"
 
 def get_book_metadata():
     files = sorted(glob.glob("books/[0-9][0-9]_*.pdf"))
@@ -35,7 +37,7 @@ def get_book_metadata():
             "title": title,
             "filename": basename,
             "rel_path": f"books/{basename}",
-            "cloud_url": f"{GITHUB_RAW_BASE}/{basename}",
+            "cloud_url": f"{CDN_BASE}/{basename}",
             "pages": len(r.pages),
             "testament": testament
         })
@@ -45,7 +47,7 @@ def generate_latex_documents(front_matter, books):
     ot_books = [b for b in books if b["testament"] == "OT"]
     nt_books = [b for b in books if b["testament"] == "NT"]
 
-    # 1. Local Edition (Master_Index.tex)
+    # 1. Local Edition (Master_Index.tex) - Remains completely intact for local offline use
     _build_single_tex(
         tex_filename="Master_Index.tex",
         pdf_filename="Master_Index.pdf",
@@ -57,16 +59,16 @@ def generate_latex_documents(front_matter, books):
         front_matter_link="books/00_Front_Matter.pdf"
     )
 
-    # 2. Cloud Edition (Master_Index_Cloud.tex) - For iPhone / iCloud / Web
+    # 2. Cloud Edition (Master_Index_Cloud.tex) - CDN Streamed for On-The-Fly Viewing
     _build_single_tex(
         tex_filename="Master_Index_Cloud.tex",
         pdf_filename="Master_Index_Cloud.pdf",
-        subtitle_note="Cloud Edition --- Links stream directly from GitHub (iPhone \\& Mobile Ready)",
+        subtitle_note="Cloud Edition --- Opens on the fly from GitHub CDN (iPhone \\& Mobile Ready)",
         ot_books=ot_books,
         nt_books=nt_books,
         link_key="cloud_url",
-        overview_text="Cloud Edition $\\cdot$ Hosted on GitHub \\texttt{vtrandal/WordofGod}",
-        front_matter_link=f"{GITHUB_RAW_BASE}/00_Front_Matter.pdf"
+        overview_text="Cloud Edition $\\cdot$ High-speed CDN mirror of \\texttt{vtrandal/WordofGod}",
+        front_matter_link=f"{CDN_BASE}/00_Front_Matter.pdf"
     )
 
 def _build_single_tex(tex_filename, pdf_filename, subtitle_note, ot_books, nt_books, link_key, overview_text, front_matter_link):
@@ -436,7 +438,7 @@ def generate_html_bookshelf(front_matter, books):
                 <div class="books-list" id="otList">
 """
     for b in ot_books:
-        html += f"""                    <a href="{b['rel_path']}" class="book-card" data-title="{b['title'].lower()}" target="_blank">
+        html += f"""                    <a href="{b['cloud_url']}" class="book-card" data-title="{b['title'].lower()}" target="_blank">
                         <div class="book-info">
                             <span class="book-num">{b['num']:02d}</span>
                             <span class="book-title">{b['title']}</span>
@@ -457,7 +459,7 @@ def generate_html_bookshelf(front_matter, books):
                 <div class="books-list" id="ntList">
 """
     for b in nt_books:
-        html += f"""                    <a href="{b['rel_path']}" class="book-card" data-title="{b['title'].lower()}" target="_blank">
+        html += f"""                    <a href="{b['cloud_url']}" class="book-card" data-title="{b['title'].lower()}" target="_blank">
                         <div class="book-info">
                             <span class="book-num">{b['num']:02d}</span>
                             <span class="book-title">{b['title']}</span>
